@@ -14,20 +14,23 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { AuthenticateUserDto } from './dto/authenticate-user.dto';
+import { ApiTags } from '@nestjs/swagger';
+
+import { UserService } from './user.service';
+import { FindUserDto } from './dto/find-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
-import { FindUserDto } from './dto/find-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserService } from './user.service';
+import { AuthenticateUserDto } from './dto/authenticate-user.dto';
 
-@Controller('user')
+@Controller('users')
+@ApiTags('users')
 export class UserController {
   constructor(private readonly usersService: UserService) {}
 
   @Get()
   async find(@Query() findUserDto: FindUserDto, @Req() req: Request) {
-    throw new NotImplementedException();
+    return this.usersService.find(findUserDto)
   }
 
   @Get(':id')

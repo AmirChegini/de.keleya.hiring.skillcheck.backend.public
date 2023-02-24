@@ -1,12 +1,15 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma.services';
-import { AuthenticateUserDto } from './dto/authenticate-user.dto';
-import { CreateUserDto } from './dto/create-user.dto';
-import { DeleteUserDto } from './dto/delete-user.dto';
+import { Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
+
 import { FindUserDto } from './dto/find-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DeleteUserDto } from './dto/delete-user.dto';
+import { SortEnum } from 'src/common/enums/sort.enum';
+import { Constants } from 'src/common/constants/constants';
+import { AuthenticateUserDto } from './dto/authenticate-user.dto';
 
 @Injectable()
 export class UserService {
@@ -18,8 +21,80 @@ export class UserService {
    * @param findUserDto
    * @returns User[]
    */
-  async find(findUserDto: FindUserDto): Promise<User[]> {
-    throw new NotImplementedException();
+  async find(findUserDto: FindUserDto)
+    // : Promise<{ users: User[], totalCount: number }>
+  {
+    console.log({findUserDto})
+    try{
+    const limit = Number(findUserDto.limit ?? Constants.LIMIT);
+    const offset = Number(findUserDto.offset ?? Constants.OFFSET);
+    const sortBy = findUserDto.sortBy ?? Constants.SORT_BY;
+    const sort = findUserDto.sort ?? SortEnum.ASC;
+
+    const orderBy = {
+      [sortBy]: sort,
+    };
+
+    const conditions: any = {};
+
+    if (findUserDto.updatedSince)
+      conditions.updated_at = {
+        gte: new Date(findUserDto.updatedSince),
+      };
+
+    if (findUserDto.id)
+      conditions.id = {
+        in: findUserDto.id,
+      };
+
+    if (findUserDto.name)
+      conditions.name = {
+        contains: findUserDto.name,
+      };
+
+    if (findUserDto.credentials) conditions.credentials = { id: findUserDto.credentials };
+
+    if (findUserDto.email)
+      conditions.email = findUserDto.email.toLowerCase()
+
+
+    if (findUserDto.email_confirmed) conditions.email_confirmed = findUserDto.email_confirmed;
+
+    if (findUserDto.is_admin) conditions.is_admin = findUserDto.is_admin;
+
+    const [users, totalCount] = await Promise.all([
+      this.prisma.user.findMany({
+        where: conditions,
+        take: limit,
+        skip: offset,
+        orderBy,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          email_confirmed: true,
+          is_admin: true,
+          created_at: true,
+          updated_at: true,
+          credentials: {
+            select: {
+              id: true,
+              hash: true,
+            },
+          },
+        }
+      }),
+      this.prisma.user.count({ where: conditions}),
+    ]);
+
+    
+    // console.log(users, totalCount);
+      return { users, totalCount }
+      
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException();
+    }
   }
 
   /**

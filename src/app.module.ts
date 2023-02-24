@@ -1,15 +1,16 @@
+import * as Joi from 'joi';
+import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
-import { PrismaService } from './prisma.services';
-import { UserController } from './user/user.controller';
+import { APP_FILTER } from '@nestjs/core';
+import { PassportModule } from '@nestjs/passport';
 import { UserService } from './user/user.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as Joi from 'joi';
-import { APP_FILTER } from '@nestjs/core';
-import { QueryExceptionFilter } from './common/exception-filters/query-exception.filter';
-import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
-import { PassportModule } from '@nestjs/passport';
+
 import { AppController } from './app.controller';
+import { PrismaService } from './prisma.services';
+import { UserController } from './user/user.controller';
+import { QueryExceptionFilter } from './common/exception-filters/query-exception.filter';
 
 @Module({
   imports: [
