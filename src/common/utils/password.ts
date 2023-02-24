@@ -14,5 +14,6 @@ export const hashPasswordSync = (password: string): string => {
 };
 
 export const matchHashedPassword = async (password: string, hash: string): Promise<boolean> => {
-  throw new NotImplementedException();
+  const isPasswordValid = await bcrypt.compare(password, hash);
+  return isPasswordValid;
 };
