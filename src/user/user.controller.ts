@@ -30,22 +30,22 @@ export class UserController {
 
   @Get()
   async find(@Query() findUserDto: FindUserDto, @Req() req: Request) {
-    return this.usersService.find(findUserDto)
+    return this.usersService.find(findUserDto);
   }
 
   @Get(':id')
   async findUnique(@Param('id', ParseIntPipe) id, @Req() req: Request) {
-    return this.usersService.findUnique({id})
+    return this.usersService.findUnique({ id });
   }
 
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto)
+    return this.usersService.create(createUserDto);
   }
 
-  @Patch()
-  async update(@Body() updateUserDto: UpdateUserDto, @Req() req: Request) {
-    throw new NotImplementedException();
+  @Patch(':id')
+  async update(@Param('id', ParseIntPipe) id, @Body() updateUserDto: UpdateUserDto, @Req() req: Request) {
+    return this.usersService.update(id, updateUserDto);
   }
 
   @Delete()

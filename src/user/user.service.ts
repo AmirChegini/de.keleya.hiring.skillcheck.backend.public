@@ -12,6 +12,7 @@ import { SortEnum } from 'src/common/enums/sort-by.enum';
 import { hashPassword } from 'src/common/utils/password';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
+import { DBError } from 'src/common/exception-filters/catch-db-error';
 
 @Injectable()
 export class UserService {
@@ -27,8 +28,8 @@ export class UserService {
     const { limit, offset, sortBy, sort, updatedSince, id, name, credentials, email, email_confirmed, is_admin } =
       findUserDto;
     try {
-      const take = Number(limit ?? Constants.LIMIT);
-      const skip = Number(offset ?? Constants.OFFSET);
+      const take = limit ?? Constants.LIMIT;
+      const skip = offset ?? Constants.OFFSET;
 
       const orderBy = {
         [sortBy ?? Constants.SORT_BY]: sort ?? SortEnum.ASC,
@@ -95,44 +96,36 @@ export class UserService {
    * @returns result of create
    */
   async create(createUserDto: CreateUserDto): Promise<User> {
-    try {
-      const { name, email, password } = createUserDto;
-      // Check if a user with the same email already exists
-      const existingUser = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-      if (existingUser) {
-        throw new ConflictException('User with this email already exists');
-      }
+    const { name, email, password } = createUserDto;
 
-      // Hash the password using bcryptjs
-      const hashedPassword = await hashPassword(createUserDto.password);
+    const hashedPassword = await hashPassword(password);
 
-      // Create a new credential record in the database with the hashed password
-      const credential = await this.prisma.credentials.create({
+    const credential = await this.prisma.credentials
+      .create({
         data: {
           hash: hashedPassword,
         },
+      })
+      .catch((err) => {
+        console.log(err);
+        throw DBError(err);
       });
 
-      // Create a new user record in the database and associate it with the new credential record
-      const user = await this.prisma.user
-        .create({
-          data: {
-            name: name,
-            email: email.toLowerCase(),
-            credentials: {
-              connect: { id: credential.id },
-            },
+    const user = await this.prisma.user
+      .create({
+        data: {
+          name: name,
+          email: email.toLowerCase(),
+          credentials: {
+            connect: { id: credential.id },
           },
-        })
-        .catch((err) => {
-          console.log(err);
-          throw new BadRequestException(err);
-        });
-      return user;
-    } catch (err) {
-      console.log(err);
-      throw new InternalServerErrorException();
-    }
+        },
+      })
+      .catch((err) => {
+        console.log(err);
+        throw DBError(err);
+      });
+    return user;
   }
 
   /**
@@ -141,8 +134,21 @@ export class UserService {
    * @param updateUserDto
    * @returns result of update
    */
-  async update(updateUserDto: UpdateUserDto) {
-    throw new NotImplementedException();
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.prisma.user
+      .update({
+        where: { id },
+        data: { name: updateUserDto.name },
+      })
+      .catch((err) => {
+        console.log(err);
+        throw DBError(err);
+      });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 
   /**

@@ -42,9 +42,10 @@ export class FindUserDto {
   updatedSince: Date;
 
   @Transform(({ value }) => JSON.parse(value).map((item) => Number(item)))
-  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
+  @IsNumber({}, { each: true })
+  @IsOptional()
   id: number[];
 
   @IsOptional()
