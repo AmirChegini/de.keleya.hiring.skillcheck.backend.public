@@ -35,7 +35,7 @@ export class UserController {
 
   @Get(':id')
   async findUnique(@Param('id', ParseIntPipe) id, @Req() req: Request) {
-    throw new NotImplementedException();
+    return this.usersService.findUnique({id})
   }
 
   @Post()

@@ -1,6 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, User, Credentials } from '@prisma/client';
 import { PrismaService } from '../prisma.services';
+import { Prisma, User } from '@prisma/client';
+import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { ConflictException, Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
 
 import { FindUserDto } from './dto/find-user.dto';
@@ -8,10 +9,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { SortEnum } from 'src/common/enums/sort-by.enum';
+import { hashPassword } from 'src/common/utils/password';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
-import { hashPassword } from 'src/common/utils/password';
-import { BadRequestException } from '@nestjs/common/exceptions';
 
 @Injectable()
 export class UserService {
@@ -67,8 +67,8 @@ export class UserService {
       ]);
 
       return { users, totalCount };
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.log(err);
       throw new InternalServerErrorException();
     }
   }
@@ -80,7 +80,12 @@ export class UserService {
    * @returns User
    */
   async findUnique(whereUnique: Prisma.UserWhereUniqueInput, includeCredentials = false) {
-    throw new NotImplementedException();
+    const user = await this.prisma.user.findUnique({
+      where: whereUnique,
+    });
+
+    if (!user) throw new NotFoundException('User not found.');
+    return user;
   }
 
   /**
@@ -89,38 +94,45 @@ export class UserService {
    * @param createUserDto
    * @returns result of create
    */
-  async create(createUserDto: CreateUserDto) :Promise<User>{
-    const { name, email, password } = createUserDto;
-    // Check if a user with the same email already exists
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    try {
+      const { name, email, password } = createUserDto;
+      // Check if a user with the same email already exists
+      const existingUser = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
 
-    // Hash the password using bcryptjs
-    const hashedPassword =await hashPassword(createUserDto.password);
+      // Hash the password using bcryptjs
+      const hashedPassword = await hashPassword(createUserDto.password);
 
-    // Create a new credential record in the database with the hashed password
-    const credential = await this.prisma.credentials.create({
-      data: {
-        hash: hashedPassword,
-      },
-    });
-
-    // Create a new user record in the database and associate it with the new credential record
-    const user = await this.prisma.user.create({
-      data: {
-        name: name,
-        email: email,
-        credentials: {
-          connect: { id: credential.id },
+      // Create a new credential record in the database with the hashed password
+      const credential = await this.prisma.credentials.create({
+        data: {
+          hash: hashedPassword,
         },
-      },
-    }).catch((err) => {
-      console.log(err)
-      throw new BadRequestException(err)
-    })
-    return user
+      });
+
+      // Create a new user record in the database and associate it with the new credential record
+      const user = await this.prisma.user
+        .create({
+          data: {
+            name: name,
+            email: email.toLowerCase(),
+            credentials: {
+              connect: { id: credential.id },
+            },
+          },
+        })
+        .catch((err) => {
+          console.log(err);
+          throw new BadRequestException(err);
+        });
+      return user;
+    } catch (err) {
+      console.log(err);
+      throw new InternalServerErrorException();
+    }
   }
 
   /**
