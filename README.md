@@ -83,3 +83,9 @@ The asynchronous version hashPassword is usually preferred over the synchronous 
 //update user function
 The second option is generally better as it follows the RESTful convention for updating a resource, where the identifier of the resource is provided in the URL (as part of the request parameters) and the attributes to update are provided in the request body.
 
+//delete user
+don't need dto
+
+//fix http status codes, also check postman tests for this
+// trim inputs
+

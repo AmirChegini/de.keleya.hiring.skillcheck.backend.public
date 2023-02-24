@@ -19,7 +19,6 @@ import { ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { FindUserDto } from './dto/find-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { DeleteUserDto } from './dto/delete-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
 
@@ -59,8 +58,9 @@ export class UserController {
   }
 
   @Post('authenticate')
+  @HttpCode(200)
   async userAuthenticate(@Body() authenticateUserDto: AuthenticateUserDto) {
-    throw new NotImplementedException();
+    return this.usersService.authenticate(authenticateUserDto);
   }
 
   @Post('token')

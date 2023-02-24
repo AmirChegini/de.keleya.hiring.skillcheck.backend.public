@@ -1,15 +1,14 @@
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.services';
 import { Prisma, User } from '@prisma/client';
-import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
-import { ConflictException, Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common/exceptions';
+import { Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
 
 import { FindUserDto } from './dto/find-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { DeleteUserDto } from './dto/delete-user.dto';
 import { SortEnum } from 'src/common/enums/sort-by.enum';
-import { hashPassword } from 'src/common/utils/password';
+import { hashPassword, matchHashedPassword } from 'src/common/utils/password';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
 import { DBError } from 'src/common/exception-filters/catch-db-error';
@@ -82,6 +81,7 @@ export class UserService {
   async findUnique(whereUnique: Prisma.UserWhereUniqueInput, includeCredentials = false) {
     const user = await this.prisma.user.findUnique({
       where: whereUnique,
+      include: includeCredentials ? { credentials: true } : undefined,
     });
 
     if (!user) throw new NotFoundException('User not found.');
@@ -177,7 +177,7 @@ export class UserService {
       .catch((err) => {
         throw DBError(err);
       });
-    
+
     await this.prisma.user
       .update({
         where: {
@@ -210,7 +210,27 @@ export class UserService {
    * @returns true or false
    */
   async authenticate(authenticateUserDto: AuthenticateUserDto) {
-    throw new NotImplementedException();
+    let credentials = true;
+
+    const { email, password } = authenticateUserDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { credentials: true },
+    });
+
+    if (!user) {
+      credentials = false;
+      return { credentials }
+    }
+
+    const isPasswordValid = await matchHashedPassword(password, user.credentials.hash);
+
+    if (!isPasswordValid) {
+      credentials = false;
+    }
+
+    return { credentials };
   }
 
   /**

@@ -5,7 +5,6 @@ import { Constants } from '../constants/constants';
 
 export const hashPassword = async (password: string): Promise<string> => {
   const hashedPassword = await bcrypt.hash(password, Constants.SALT_OR_ROUNDS);
-
   return hashedPassword;
 };
 
