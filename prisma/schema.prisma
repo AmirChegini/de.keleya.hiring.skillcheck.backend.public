@@ -15,8 +15,8 @@ model User {
   is_admin   Boolean  @default(false)
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-  credentials   Credentials @relation(fields: [credentials_id], references: [id])
-  credentials_id Int
+  credentials   Credentials? @relation(fields: [credentials_id], references: [id])
+  credentials_id Int?
   @@map("users")
 }
 
