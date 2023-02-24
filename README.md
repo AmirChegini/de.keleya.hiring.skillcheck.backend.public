@@ -77,3 +77,5 @@ yarn test
 ### Your Notes Below Here
 
 ...
+The asynchronous version hashPassword is usually preferred over the synchronous version hashPasswordSync because hashing large passwords can take a considerable amount of time, and blocking the event loop can lead to decreased performance. By using the asynchronous version, we can avoid blocking the event loop and instead delegate the expensive computation to a worker thread or a separate process.
+

@@ -1,9 +1,12 @@
-import { NotImplementedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { NotImplementedException } from '@nestjs/common';
 
-const saltOrRounds = 10;
+import { Constants } from '../constants/constants';
+
 export const hashPassword = async (password: string): Promise<string> => {
-  throw new NotImplementedException();
+  const hashedPassword = await bcrypt.hash(password, Constants.SALT_OR_ROUNDS);
+
+  return hashedPassword;
 };
 
 export const hashPasswordSync = (password: string): string => {

@@ -1,15 +1,17 @@
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, User } from '@prisma/client';
+import { Prisma, User, Credentials } from '@prisma/client';
 import { PrismaService } from '../prisma.services';
-import { Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
 
 import { FindUserDto } from './dto/find-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
-import { SortEnum } from 'src/common/enums/sort.enum';
+import { SortEnum } from 'src/common/enums/sort-by.enum';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
+import { hashPassword } from 'src/common/utils/password';
+import { BadRequestException } from '@nestjs/common/exceptions';
 
 @Injectable()
 export class UserService {
@@ -21,76 +23,50 @@ export class UserService {
    * @param findUserDto
    * @returns User[]
    */
-  async find(findUserDto: FindUserDto)
-    // : Promise<{ users: User[], totalCount: number }>
-  {
-    console.log({findUserDto})
-    try{
-    const limit = Number(findUserDto.limit ?? Constants.LIMIT);
-    const offset = Number(findUserDto.offset ?? Constants.OFFSET);
-    const sortBy = findUserDto.sortBy ?? Constants.SORT_BY;
-    const sort = findUserDto.sort ?? SortEnum.ASC;
+  async find(findUserDto: FindUserDto): Promise<{ users: User[]; totalCount: number }> {
+    const { limit, offset, sortBy, sort, updatedSince, id, name, credentials, email, email_confirmed, is_admin } =
+      findUserDto;
+    try {
+      const take = Number(limit ?? Constants.LIMIT);
+      const skip = Number(offset ?? Constants.OFFSET);
 
-    const orderBy = {
-      [sortBy]: sort,
-    };
-
-    const conditions: any = {};
-
-    if (findUserDto.updatedSince)
-      conditions.updated_at = {
-        gte: new Date(findUserDto.updatedSince),
+      const orderBy = {
+        [sortBy ?? Constants.SORT_BY]: sort ?? SortEnum.ASC,
       };
 
-    if (findUserDto.id)
-      conditions.id = {
-        in: findUserDto.id,
-      };
+      const conditions: any = {};
 
-    if (findUserDto.name)
-      conditions.name = {
-        contains: findUserDto.name,
-      };
+      if (updatedSince)
+        conditions.updated_at = {
+          gte: new Date(updatedSince),
+        };
 
-    if (findUserDto.credentials) conditions.credentials = { id: findUserDto.credentials };
+      if (id)
+        conditions.id = {
+          in: id,
+        };
 
-    if (findUserDto.email)
-      conditions.email = findUserDto.email.toLowerCase()
+      if (name)
+        conditions.name = {
+          contains: name,
+        };
 
+      if (credentials) conditions.credentials = { id: credentials };
+      if (email) conditions.email = email.toLowerCase();
+      if (email_confirmed) conditions.email_confirmed = email_confirmed;
+      if (is_admin) conditions.is_admin = is_admin;
 
-    if (findUserDto.email_confirmed) conditions.email_confirmed = findUserDto.email_confirmed;
+      const [users, totalCount] = await Promise.all([
+        this.prisma.user.findMany({
+          where: conditions,
+          take,
+          skip,
+          orderBy,
+        }),
+        this.prisma.user.count({ where: conditions }),
+      ]);
 
-    if (findUserDto.is_admin) conditions.is_admin = findUserDto.is_admin;
-
-    const [users, totalCount] = await Promise.all([
-      this.prisma.user.findMany({
-        where: conditions,
-        take: limit,
-        skip: offset,
-        orderBy,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          email_confirmed: true,
-          is_admin: true,
-          created_at: true,
-          updated_at: true,
-          credentials: {
-            select: {
-              id: true,
-              hash: true,
-            },
-          },
-        }
-      }),
-      this.prisma.user.count({ where: conditions}),
-    ]);
-
-    
-    // console.log(users, totalCount);
-      return { users, totalCount }
-      
+      return { users, totalCount };
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException();
@@ -113,8 +89,38 @@ export class UserService {
    * @param createUserDto
    * @returns result of create
    */
-  async create(createUserDto: CreateUserDto) {
-    throw new NotImplementedException();
+  async create(createUserDto: CreateUserDto) :Promise<User>{
+    const { name, email, password } = createUserDto;
+    // Check if a user with the same email already exists
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    // Hash the password using bcryptjs
+    const hashedPassword =await hashPassword(createUserDto.password);
+
+    // Create a new credential record in the database with the hashed password
+    const credential = await this.prisma.credentials.create({
+      data: {
+        hash: hashedPassword,
+      },
+    });
+
+    // Create a new user record in the database and associate it with the new credential record
+    const user = await this.prisma.user.create({
+      data: {
+        name: name,
+        email: email,
+        credentials: {
+          connect: { id: credential.id },
+        },
+      },
+    }).catch((err) => {
+      console.log(err)
+      throw new BadRequestException(err)
+    })
+    return user
   }
 
   /**

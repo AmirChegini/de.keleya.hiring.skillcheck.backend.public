@@ -12,7 +12,7 @@ import {
   ArrayMinSize,
 } from 'class-validator';
 
-import { SortEnum } from 'src/common/enums/sort.enum';
+import { SortEnum } from 'src/common/enums/sort-by.enum';
 import { UserSortEnum } from 'src/common/enums/user-sort.enum';
 
 export class FindUserDto {
