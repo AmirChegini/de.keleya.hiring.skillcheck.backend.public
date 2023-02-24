@@ -48,9 +48,9 @@ export class UserController {
     return this.usersService.update(id, updateUserDto);
   }
 
-  @Delete()
-  async delete(@Body() deleteUserDto: DeleteUserDto, @Req() req: Request) {
-    throw new NotImplementedException();
+  @Delete(':id')
+  async delete(@Param('id', ParseIntPipe) id, @Req() req: Request) {
+    return this.usersService.delete(id);
   }
 
   @Post('validate')

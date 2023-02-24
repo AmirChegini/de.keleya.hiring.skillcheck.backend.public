@@ -69,7 +69,6 @@ export class UserService {
 
       return { users, totalCount };
     } catch (err) {
-      console.log(err);
       throw new InternalServerErrorException();
     }
   }
@@ -107,7 +106,6 @@ export class UserService {
         },
       })
       .catch((err) => {
-        console.log(err);
         throw DBError(err);
       });
 
@@ -122,7 +120,6 @@ export class UserService {
         },
       })
       .catch((err) => {
-        console.log(err);
         throw DBError(err);
       });
     return user;
@@ -141,7 +138,6 @@ export class UserService {
         data: { name: updateUserDto.name },
       })
       .catch((err) => {
-        console.log(err);
         throw DBError(err);
       });
     if (!user) {
@@ -161,8 +157,40 @@ export class UserService {
    * @param deleteUserDto
    * @returns results of users and credentials table modification
    */
-  async delete(deleteUserDto: DeleteUserDto) {
-    throw new NotImplementedException();
+  async delete(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        credentials: true,
+      },
+    });
+    if (!user || !user.email) throw new NotFoundException('User not found.');
+
+    await this.prisma.credentials
+      .delete({
+        where: {
+          id: user.credentials.id,
+        },
+      })
+      .catch((err) => {
+        throw DBError(err);
+      });
+    
+    await this.prisma.user
+      .update({
+        where: {
+          id,
+        },
+        data: {
+          name: 'DELETED_USER_NAME',
+          email: null,
+        },
+      })
+      .catch((err) => {
+        throw DBError(err);
+      });
   }
 
   /**

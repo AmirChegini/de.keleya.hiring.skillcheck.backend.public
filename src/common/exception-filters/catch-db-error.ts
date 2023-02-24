@@ -2,7 +2,6 @@ import { BadRequestException, InternalServerErrorException, NotFoundException } 
 
 export const DBError = (err: any) => {
   console.log('DB Error:', err);
-  console.log('DB Error Detail:', err.detail);
   switch (err.code) {
     case 'P2025': {
       return new NotFoundException('Resource not found.');
