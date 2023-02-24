@@ -12,6 +12,7 @@ import { hashPassword, matchHashedPassword } from 'src/common/utils/password';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
 import { DBError } from 'src/common/exception-filters/catch-db-error';
+import { options } from 'joi';
 
 @Injectable()
 export class UserService {
@@ -199,8 +200,35 @@ export class UserService {
    * @param authenticateUserDto email and password for authentication
    * @returns a JWT token
    */
-  async authenticateAndGetJwtToken(authenticateUserDto: AuthenticateUserDto) {
-    throw new NotImplementedException();
+  async authenticateAndGetJwtToken(authenticateUserDto: AuthenticateUserDto): Promise<{ token: string }> {
+    const { email, password } = authenticateUserDto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { credentials: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid Credentials"');
+    }
+
+    const isPasswordValid = await matchHashedPassword(password, user.credentials.hash);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid Credentials"');
+    }
+    const payload = {
+      userId: user.id,
+    };
+    const secret = process.env.JWT_SECRET;
+    const expiresIn = '1h';
+
+    const token = await this.jwtService.signAsync(payload, {
+      secret,
+      expiresIn,
+    });
+
+    return { token };
   }
 
   /**
@@ -209,7 +237,7 @@ export class UserService {
    * @param authenticateUserDto email and password for authentication
    * @returns true or false
    */
-  async authenticate(authenticateUserDto: AuthenticateUserDto) {
+  async authenticate(authenticateUserDto: AuthenticateUserDto): Promise<{ credentials: boolean }> {
     let credentials = true;
 
     const { email, password } = authenticateUserDto;
@@ -221,7 +249,7 @@ export class UserService {
 
     if (!user) {
       credentials = false;
-      return { credentials }
+      return { credentials };
     }
 
     const isPasswordValid = await matchHashedPassword(password, user.credentials.hash);
