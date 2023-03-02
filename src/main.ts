@@ -1,3 +1,4 @@
+import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
 import { useContainer } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { createDocument } from './common/swagger/swagger';
+import { QueryExceptionFilter } from './common/exception-filters/query-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +16,7 @@ async function bootstrap() {
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });
+  app.use(helmet());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -23,13 +26,13 @@ async function bootstrap() {
     }),
   );
 
-  //Set up Swagger
   SwaggerModule.setup('api', app, createDocument(app));
 
   const configService = app.get(ConfigService);
   console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
-  // enable useContainer to be able to inject into class validators
+  app.useGlobalFilters(new QueryExceptionFilter());
+
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   await app.listen(configService.get('PORT'));
 }
