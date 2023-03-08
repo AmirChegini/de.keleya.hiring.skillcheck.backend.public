@@ -77,6 +77,7 @@ yarn test
 ```
 
 ### Your Notes Below Here
+
 ### Types
 
 - I also used Dtos for API responses
@@ -124,23 +125,44 @@ yarn test
   - It's not a public endpoint, so we need Authentication and Authorization
   - I used AuthGuard and RolesGuard to Authorize users
 
-* POST /user should create a new user with credentials
+* POST /users should create a new user with credentials
   request:
 
   - `name` is required, it should be at least 3 chars
   - `email` is required, it should matches the @IsEmail decorator from class-validator
-  - `password` is required, it should matches a regex, this regex enforces that the password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character, and be at least 8 characters long. If any of the validation fails, an appropriate error message will be returned
+  - `password` is required, it should matches a regex, this regex enforces that the password must contain at least one uppercase letter, one lowercase letter, one digit,
+    and one special character, and be at least 8 characters long. If any of the validation fails, an appropriate error message will be returned
+  - `isAdmin` is optional, if true the created user will be an admin
     response:
   - The response is exactly like findUnique response
     rules:
-  - It's a public endpoint, so it does not need any Authentication or Authorization
+  - It's not a public endpoint, so we need Authentication and Authorization
+  - I used AuthGuard and RolesGuard to Authorize users
 
-* PATCH /user should update a user if it exists and should update credentials if they exist IF the user has not been deleted previously
+* PATCH /users/:id admins should update a user if it exists and should update credentials if they exist IF the user has not been deleted previously
   request:
-  response:
-  rules:
 
-* DELETE /user marks the user as deleted and also removes related credentials rows, but does NOT remove the user row itself
+  - `name` optional
+  - `email` optional
+  - `newPassword` optional  
+    response:
+  - The response is exactly like findUnique response
+    rules:
+  - It's not a public endpoint, so we need Authentication and Authorization
+  - I used AuthGuard and RolesGuard to Authorize users
+
+* PATCH /users/updateOwn users are able to update their own info
+  request:
+
+  - `name` optional
+  - `email` optional
+  - `newPassword` optional  
+    response:
+  - The response is UserProfileResponseDto
+    rules:
+  - Only AuthGuard needed
+
+* DELETE /users/:id marks the user as deleted and also removes related credentials rows, but does NOT remove the user row itself
   request:
 
   - `id` from params should be userId (integer), it does not need a Dto
