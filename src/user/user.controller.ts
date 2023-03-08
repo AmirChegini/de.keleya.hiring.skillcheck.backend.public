@@ -41,7 +41,6 @@ import { Serialize } from 'src/common/interceptors/serialize.interceptor';
 import { GetTokenUserResponseDto } from './dto/get-token-user-response.dto';
 import { AuthenticateUserResponseDto } from './dto/authenticate-user-response.dto';
 import { ValidateTokenUserResponseDto } from './dto/validate-token-user-response.dto';
-import { UpdateOwnUserDto } from './dto/update-own-user.dto';
 
 @Controller('users')
 @ApiTags('users')
@@ -50,34 +49,34 @@ export class UserController {
 
   @Get('profile')
   @ApiBearerAuth('access-token')
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiUnauthorizedResponse()
+  @UseGuards(AuthGuard('jwt'))
   @Serialize(UserProfileDto)
   async getProfile(@Req() req: Request): Promise<UserProfileResponseDto> {
-    return this.usersService.getProfile(req);
+    return this.usersService.getProfile(req.user);
   }
 
   @Get('ownUserId')
   @ApiBearerAuth('access-token')
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiUnauthorizedResponse()
+  @UseGuards(AuthGuard('jwt'))
   @Serialize(UserOwnUserIdDto)
   async getOwnUserId(@Req() req: Request): Promise<UserOwnUserIdResponseDto> {
-    return this.usersService.getProfile(req);
+    return this.usersService.getProfile(req.user);
   }
 
   @Patch('updateOwn')
   @ApiBearerAuth('access-token')
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiUnauthorizedResponse()
   @Serialize(UserProfileDto)
-  async updateOwn(@Body() updateUserDto: UpdateOwnUserDto, @Req() req: Request) // : Promise<UserSingleResponseDto>
-  {
-    //TODO
+  async updateOwn(@Body() updateUserDto: UpdateUserDto, @Req() req: Request): Promise<UserProfileResponseDto> {
     const { user } = await this.usersService.getProfile(req);
-    return this.usersService.updateOwn(user.id, updateUserDto);
+    return this.usersService.update(user.id, updateUserDto);
   }
 
   @Get()
   @ApiBearerAuth('access-token')
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiUnauthorizedResponse()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Serialize(UserDto)
   async find(@Query() findUserDto: FindUserDto): Promise<UserListResponseDto> {
@@ -86,16 +85,18 @@ export class UserController {
 
   @Get(':id')
   @ApiBearerAuth('access-token')
-  @ApiNotFoundResponse({ description: 'User not found.' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse()
+  @ApiUnauthorizedResponse()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Serialize(UserDto)
   async findUnique(@Param('id', ParseIntPipe) id: number): Promise<UserSingleResponseDto> {
     return this.usersService.findUnique({ id });
   }
-  //TODO, add auth guard, response and is_admin properties should be different for admin and user
+
   @Post()
-  @ApiBadRequestResponse({ description: 'email is in use.' })
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Serialize(UserDto)
   async create(@Body() createUserDto: CreateUserDto): Promise<UserSingleResponseDto> {
     return this.usersService.create(createUserDto);
@@ -103,8 +104,8 @@ export class UserController {
 
   @Patch(':id')
   @ApiBearerAuth('access-token')
-  @ApiNotFoundResponse({ description: 'User not found.' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse()
+  @ApiUnauthorizedResponse()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Serialize(UserDto)
   async update(
@@ -116,8 +117,8 @@ export class UserController {
 
   @Delete(':id')
   @ApiBearerAuth('access-token')
-  @ApiNotFoundResponse({ description: 'User not found.' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiNotFoundResponse()
+  @ApiUnauthorizedResponse()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.usersService.delete(id);
@@ -125,9 +126,15 @@ export class UserController {
 
   @Post('validate')
   @ApiBearerAuth('access-token')
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiUnauthorizedResponse()
+  @UseGuards(AuthGuard('jwt'))
   async userValidateToken(@Req() req: Request): Promise<ValidateTokenUserResponseDto> {
-    return this.usersService.validateToken(req);
+    return {
+      decodedToken: {
+        id: req.user['id'],
+        isAdmin: req.user['isAdmin'],
+      },
+    };
   }
 
   @Post('authenticate')
@@ -138,11 +145,15 @@ export class UserController {
 
   @Post('token')
   @HttpCode(200)
-  @ApiUnauthorizedResponse({ description: 'Invalid Credentials.' })
+  @ApiUnauthorizedResponse()
   async userGetToken(@Body() authenticateUserDto: AuthenticateUserDto): Promise<GetTokenUserResponseDto> {
     return this.usersService.authenticateAndGetJwtToken(authenticateUserDto);
   }
 
+  /**
+   * User login
+   * This rout uses local strategy
+   */
   @UseGuards(AuthGuard('local'))
   @Post('login')
   @HttpCode(200)

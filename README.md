@@ -77,23 +77,6 @@ yarn test
 ```
 
 ### Your Notes Below Here
-
-...
-//hash function
-The asynchronous version hashPassword is usually preferred over the synchronous version hashPasswordSync because hashing large passwords can take a considerable amount of time, and blocking the event loop can lead to decreased performance. By using the asynchronous version, we can avoid blocking the event loop and instead delegate the expensive computation to a worker thread or a separate process.
-
-//delete user
-don't need dto
-
-//fix http status codes, also check postman tests for this
-// trim inputs
-
-//mention where and why you changed response, request or DTOs`
-
-//fix all messages, and error types
-
-//we don't use guards globally, so we don't need to mention public endpoints
-
 ### Types
 
 - I also used Dtos for API responses
@@ -101,6 +84,11 @@ don't need dto
 ### Endpoints
 
 - REST API convention recommends to use /users instead of /user
+- I have decided to separate the non-public endpoints for admins and other users, for example the update API
+- I have decided to make the 'create user' API non-public, only admins are able to create users (both admin and non-admin users)
+- You can create an admin user by seeding, and login with that user, then you will be able to create users with API
+- I didn't use "guards" globally, so I don't need to mention public endpoints as "IS_PUBLIC", don't need any Authentication or Authorization
+- SwaggerUI is also available http://localhost:3000/api/
 
 * GET /users:
   request:
@@ -124,7 +112,7 @@ don't need dto
   - It's not a public endpoint, so we need Authentication and Authorization
   - I used AuthGuard and RolesGuard to Authorize users
 
-* GET /user/:id should return one specific user with that id
+* GET /users/:id should return one specific user with that id
   request:
 
   - `id` from params should be userId (integer)
@@ -136,7 +124,7 @@ don't need dto
   - It's not a public endpoint, so we need Authentication and Authorization
   - I used AuthGuard and RolesGuard to Authorize users
 
-* (public) POST /user should create a new user with credentials
+* POST /user should create a new user with credentials
   request:
 
   - `name` is required, it should be at least 3 chars
@@ -174,8 +162,8 @@ don't need dto
 
 ### Command lines:
 
+- `yarn` for installing packages
 - `npx prisma migrate dev` for migration
 - `npx prisma db seed` for seeding
   - In seed file You can create three different users, the first one is an admin
-- `yarn` for installing packages
-- `yarn start:dev` for running
+- `yarn start:dev` for running the project

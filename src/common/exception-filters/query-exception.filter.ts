@@ -1,13 +1,13 @@
+import { Request } from 'express';
 import { Catch, HttpStatus } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { Request } from 'express';
 
 @Catch(PrismaClientKnownRequestError)
 export class QueryExceptionFilter {
   catch(exception: PrismaClientKnownRequestError, host) {
     const name = exception.name;
     let message = exception.message;
-    const errorCode = exception.code;
+    let errorCode: HttpStatus | string = exception.code;
     const meta = exception.meta;
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
@@ -16,6 +16,11 @@ export class QueryExceptionFilter {
     switch (errorCode) {
       case 'P2002':
         message = 'Unique Constraint Error';
+        errorCode = HttpStatus.BAD_REQUEST;
+        break;
+      case 'P2025':
+        message = 'Resource not found';
+        errorCode = HttpStatus.NOT_FOUND;
         break;
     }
 
@@ -29,6 +34,6 @@ export class QueryExceptionFilter {
       name,
     };
 
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(msg);
+    response.status(errorCode).json(msg);
   }
 }

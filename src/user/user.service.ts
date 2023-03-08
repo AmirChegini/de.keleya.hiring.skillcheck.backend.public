@@ -1,7 +1,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma.services';
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { FindUserDto } from './dto/find-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -9,13 +9,10 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { SortEnum } from 'src/common/enums/sort-by.enum';
 import { Constants } from 'src/common/constants/constants';
 import { AuthenticateUserDto } from './dto/authenticate-user.dto';
-import { DBError } from 'src/common/exception-filters/catch-db-error';
 import { GetTokenUserResponseDto } from './dto/get-token-user-response.dto';
 import { hashPassword, matchHashedPassword } from 'src/common/utils/password';
 import { AuthenticateUserResponseDto } from './dto/authenticate-user-response.dto';
-import { ValidateTokenUserResponseDto } from './dto/validate-token-user-response.dto';
 import { UserListResponseDto, UserProfileResponseDto, UserSingleResponseDto } from './dto/user.dto';
-import { UpdateOwnUserDto } from './dto/update-own-user.dto';
 
 @Injectable()
 export class UserService {
@@ -98,117 +95,52 @@ export class UserService {
    * @returns UserSingleResponseDto
    */
   async create(createUserDto: CreateUserDto): Promise<UserSingleResponseDto> {
-    const { name, email, password } = createUserDto;
+    const { name, email, password, isAdmin } = createUserDto;
 
-    const hashedPassword = await hashPassword(password);
+    const credential = await this.prisma.credentials.create({
+      data: {
+        hash: await hashPassword(password),
+      },
+    });
 
-    const credential = await this.prisma.credentials
-      .create({
-        data: {
-          hash: hashedPassword,
+    const user = await this.prisma.user.create({
+      data: {
+        name: name,
+        email: email.toLowerCase(),
+        is_admin: isAdmin,
+        credentials: {
+          connect: { id: credential.id },
         },
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
-
-    const user = await this.prisma.user
-      .create({
-        data: {
-          name: name,
-          email: email.toLowerCase(),
-          credentials: {
-            connect: { id: credential.id },
-          },
-        },
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
+      },
+    });
     return { user };
   }
 
-  /**
-   * Updates a user unless it does not exist or has been marked as deleted before
-   *
-   * @param updateUserDto
-   * @returns UserSingleResponseDto
-   */
-  async updateOwn(id: number, updateUserDto: UpdateOwnUserDto): Promise<UserSingleResponseDto> {
-    const { name, email, password, newPassword } = updateUserDto;
-    if (newPassword && !password) throw new BadRequestException('Password is required.');
-
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id },
-      include: { credentials: true },
-    });
-    if (!user || !user.email) throw new NotFoundException('User not found.');
-
-    const isPasswordValid = await matchHashedPassword(password, user.credentials.hash);
-    if (!isPasswordValid) throw new BadRequestException('Invalid password.');
-
-    const data: any = {};
-    if (name) data.name = name;
-    if (email) data.email = email.toLocaleLowerCase();
-
-    const updatedUser = await this.prisma.user
-      .update({
-        where: { id },
-        data,
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
-
-    if (newPassword) {
-      await this.prisma.credentials
-        .update({
-          where: { id: user.credentials.id },
-          data: {
-            hash: await hashPassword(newPassword),
-          },
-        })
-        .catch((err) => {
-          throw DBError(err);
-        });
-    }
-
-    return { user: updatedUser };
-  }
-
   async update(id: number, updateUserDto: UpdateUserDto): Promise<UserSingleResponseDto> {
-    const { name, email, newPassword } = updateUserDto;
+    let { name, email, newPassword } = updateUserDto;
 
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id },
+    if (email) email = email.toLowerCase();
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id, deleted: false },
       include: { credentials: true },
     });
-    if (!user || !user.email) throw new NotFoundException('User not found.');
 
     const data: any = {};
     if (name) data.name = name;
     if (email) data.email = email.toLocaleLowerCase();
 
-    const updatedUser = await this.prisma.user
-      .update({
-        where: { id },
-        data,
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { name, email },
+    });
 
     if (newPassword) {
-      await this.prisma.credentials
-        .update({
-          where: { id: user.credentials.id },
-          data: {
-            hash: await hashPassword(newPassword),
-          },
-        })
-        .catch((err) => {
-          throw DBError(err);
-        });
+      await this.prisma.credentials.update({
+        where: { id: user.credentials.id },
+        data: {
+          hash: await hashPassword(newPassword),
+        },
+      });
     }
 
     return { user: updatedUser };
@@ -226,40 +158,34 @@ export class UserService {
    * @returns null, only status code 200 is enough
    */
   async delete(id: number): Promise<void> {
-    const user = await this.prisma.user.findUnique({
+    await this.prisma.user.deleteMany();
+    await this.prisma.credentials.deleteMany();
+    const user = await this.prisma.user.findFirstOrThrow({
       where: {
         id,
+        deleted: false,
       },
       include: {
         credentials: true,
       },
     });
-    if (!user || !user.email) throw new NotFoundException('User not found.');
 
-    await this.prisma.credentials
-      .delete({
-        where: {
-          id: user.credentials.id,
-        },
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
+    await this.prisma.credentials.delete({
+      where: {
+        id: user.credentials.id,
+      },
+    });
 
-    await this.prisma.user
-      .update({
-        where: {
-          id,
-        },
-        data: {
-          name: 'DELETED_USER_NAME',
-          email: null,
-          deleted: true,
-        },
-      })
-      .catch((err) => {
-        throw DBError(err);
-      });
+    await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        name: 'DELETED_USER_NAME',
+        email: null,
+        deleted: true,
+      },
+    });
   }
 
   /**
@@ -296,7 +222,7 @@ export class UserService {
    * Authenticates a user
    *
    * @param authenticateUserDto email and password for authentication
-   * @returns true or false
+   * @returns credentials true or false
    */
 
   async authenticate(authenticateUserDto: AuthenticateUserDto): Promise<AuthenticateUserResponseDto> {
@@ -323,31 +249,18 @@ export class UserService {
     return { credentials };
   }
 
-  /**
-   * Validates a JWT token
-   *
-   * @param token a JWT token
-   * @returns the decoded token if valid
-   */
-  async validateToken(req): Promise<ValidateTokenUserResponseDto> {
-    return this.tokenDecoder(req);
-  }
-
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       include: { credentials: true },
     });
 
-    if (!user || !user.email) {
-      return null;
-    }
+    if (!user || !user.email) return null;
 
     const isPasswordValid = await matchHashedPassword(password, user.credentials.hash);
 
-    if (!isPasswordValid) {
-      return null;
-    }
+    if (!isPasswordValid) return null;
+
     const { credentials, credentials_id, ...result } = user;
 
     return result;
@@ -363,37 +276,31 @@ export class UserService {
     return token;
   }
 
+  /**
+   * User login
+   * This is not necessary, I added this cause I wanted to say we can use local strategies too.
+   * @returns a JWT token
+   */
   async login(user: any): Promise<{ token: string }> {
     if (!user) throw new UnauthorizedException('user service login');
     const token = await this.generateAccessToken(user);
     return { token };
   }
 
-  async getProfile(req): Promise<UserProfileResponseDto> {
-    const { decodedToken } = await this.tokenDecoder(req);
-    const { user } = await this.findUnique({ id: decodedToken.id });
+  /**
+   * User get own profile
+   * @returns user id, email and name
+   */
+  async getProfile(requestUser): Promise<UserProfileResponseDto> {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: {
+        id: requestUser.id,
+        deleted: false,
+      },
+      include: {
+        credentials: true,
+      },
+    });
     return { user };
-  }
-
-  async tokenDecoder(req): Promise<ValidateTokenUserResponseDto> {
-    try {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) {
-        throw new UnauthorizedException();
-      }
-      const decodedToken = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET,
-        algorithms: ['HS256'],
-      });
-
-      return {
-        decodedToken: {
-          id: decodedToken.id,
-          isAdmin: decodedToken.isAdmin,
-        },
-      };
-    } catch (err) {
-      throw new UnauthorizedException('Token is not valid.');
-    }
   }
 }

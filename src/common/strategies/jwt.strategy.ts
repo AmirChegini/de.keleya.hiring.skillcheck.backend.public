@@ -16,7 +16,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
   async validate(payload: JwtTokenUser): Promise<any> {
-    console.log(payload);
     if (isJwtTokenUser(payload)) {
       if (payload.hasOwnProperty('id') && payload.hasOwnProperty('isAdmin')) return { ...payload };
     }
