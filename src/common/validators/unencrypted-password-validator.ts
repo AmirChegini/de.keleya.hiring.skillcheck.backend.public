@@ -3,6 +3,8 @@ import { ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments 
 
 export type UnencryptedPassword = string;
 
+//CHECK
+//It already exist in nest validators, @MinLength, @Match
 @ValidatorConstraint({ name: 'unencryptedPasswordValidator', async: true })
 @Injectable()
 export class UnencryptedPasswordValidator implements ValidatorConstraintInterface {
@@ -21,6 +23,7 @@ export class UnencryptedPasswordValidator implements ValidatorConstraintInterfac
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   defaultMessage(args: ValidationArguments) {
+    'password should includes number, upper case, lowercase, signs';
     return `Password is not complex enough`;
   }
 }

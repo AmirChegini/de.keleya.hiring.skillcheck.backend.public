@@ -1,5 +1,7 @@
 import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
+//ADDED
+//Mix this with query exception filter file
 export const DBError = (err: any) => {
   console.log('DB Error:', err);
   switch (err.code) {

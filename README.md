@@ -69,19 +69,18 @@ Command lines:
 - ![postman_tests.png](postman_tests.png)
 - Send us this screenshot as well as the export of your postman tests.
 - the following should run without errors:
+
 ```
 yarn
 npx migrate reset
 yarn test
 ```
+
 ### Your Notes Below Here
 
 ...
 //hash function
 The asynchronous version hashPassword is usually preferred over the synchronous version hashPasswordSync because hashing large passwords can take a considerable amount of time, and blocking the event loop can lead to decreased performance. By using the asynchronous version, we can avoid blocking the event loop and instead delegate the expensive computation to a worker thread or a separate process.
-
-//update user function
-The second option is generally better as it follows the RESTful convention for updating a resource, where the identifier of the resource is provided in the URL (as part of the request parameters) and the attributes to update are provided in the request body.
 
 //delete user
 don't need dto
@@ -91,3 +90,92 @@ don't need dto
 
 //mention where and why you changed response, request or DTOs`
 
+//fix all messages, and error types
+
+//we don't use guards globally, so we don't need to mention public endpoints
+
+### Types
+
+- I also used Dtos for API responses
+
+### Endpoints
+
+- REST API convention recommends to use /users instead of /user
+
+* GET /users:
+  request:
+
+  - `limit` Limit the number of results returned, default can be found in constants
+  - `offset` Skip the first n results, default can be found in constants
+  - `sortBy` I used sortBy for sorting user by id, name or email (default:id)
+  - `sort` I user sort for sorting asc or desc (default:asc)
+  - `updatedSince` Return only items which were updated since Date.
+  - `id` An Array of id(s) to limit the query to
+  - `name` a LIKE search for names
+  - `credentials` include the related credentials in result => I think it doesn't make sense for someone to know the users password and use that to filter them, so I removed it.
+  - `email` search for matching email
+  - `email_confirmed` I used this for return users with email_confirmed = true or false
+  - `is_admin` I used this for return users with is_admin = true or false
+  - `includeDeleted` I added the "deleted" parameter to the users schema to make it easier to monitor deleted users. When the deleted column is set to true in the delete API, we can see these users by passing this flag.
+    response:
+  - I added totalCount to response for pagination, so the response type is a class called UserListResponseDto
+  - Finally I used a Serializer to serialize the response data
+    rules:
+  - It's not a public endpoint, so we need Authentication and Authorization
+  - I used AuthGuard and RolesGuard to Authorize users
+
+* GET /user/:id should return one specific user with that id
+  request:
+
+  - `id` from params should be userId (integer)
+    response:
+  - It returns a user if exist, it also returns deleted user, maybe admins need to find them
+  - The response type is UserSingleResponseDto which includes user as a key and user information as value
+  - I used Serializer too, one of the purposes is removing sensitive data like password from the response
+    rules:
+  - It's not a public endpoint, so we need Authentication and Authorization
+  - I used AuthGuard and RolesGuard to Authorize users
+
+* (public) POST /user should create a new user with credentials
+  request:
+
+  - `name` is required, it should be at least 3 chars
+  - `email` is required, it should matches the @IsEmail decorator from class-validator
+  - `password` is required, it should matches a regex, this regex enforces that the password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character, and be at least 8 characters long. If any of the validation fails, an appropriate error message will be returned
+    response:
+  - The response is exactly like findUnique response
+    rules:
+  - It's a public endpoint, so it does not need any Authentication or Authorization
+
+* PATCH /user should update a user if it exists and should update credentials if they exist IF the user has not been deleted previously
+  request:
+  response:
+  rules:
+
+* DELETE /user marks the user as deleted and also removes related credentials rows, but does NOT remove the user row itself
+  request:
+
+  - `id` from params should be userId (integer), it does not need a Dto
+    response:
+  - If user exists it returns null with status code 200, if not returns a not found exception
+    rules:
+  - It's not a public endpoint, so we need Authentication and Authorization
+  - I used AuthGuard and RolesGuard to Authorize users
+
+* (public) POST /user/authenticate authenticates the user with an email/password combination and returns a boolean
+  request:
+  - email
+  - password
+    response:
+    -It returns a boolean field "
+*
+* (public) POST /user/token authenticates the user with an email/password combination and returns a JWT token
+* (public) POST /user/validate validates a Bearer token sent via authorization header and returns a boolean
+
+### Command lines:
+
+- `npx prisma migrate dev` for migration
+- `npx prisma db seed` for seeding
+  - In seed file You can create three different users, the first one is an admin
+- `yarn` for installing packages
+- `yarn start:dev` for running

@@ -1,16 +1,19 @@
 import * as Joi from 'joi';
 import { JwtModule } from '@nestjs/jwt';
-import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { UserService } from './user/user.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';``
 
 import { AppController } from './app.controller';
 import { PrismaService } from './prisma.services';
 import { UserController } from './user/user.controller';
 import { QueryExceptionFilter } from './common/exception-filters/query-exception.filter';
+import { LocalStrategy } from './common/strategies/local.strategy';
+import { SerializeInterceptor } from './common/interceptors/serialize.interceptor';
+import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 
 @Module({
   imports: [
@@ -44,7 +47,14 @@ import { QueryExceptionFilter } from './common/exception-filters/query-exception
     PrismaService,
     ConfigService,
     JwtStrategy,
+    LocalStrategy,
+    SerializeInterceptor,
+
     { provide: APP_FILTER, useClass: QueryExceptionFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

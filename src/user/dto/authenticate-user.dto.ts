@@ -1,10 +1,14 @@
-import { IsString, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsString } from 'class-validator';
 
 export class AuthenticateUserDto {
+  @ApiProperty()
   @IsString()
-  email: string;
+  @Transform(({ value }) => value?.trim())
+  readonly email: string;
 
+  @ApiProperty()
   @IsString()
-  @MinLength(6)
-  password: string;
+  readonly password: string;
 }

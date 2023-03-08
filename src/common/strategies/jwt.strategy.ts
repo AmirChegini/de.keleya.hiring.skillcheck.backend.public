@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../user/user.service';
-import { isJwtTokenUser } from '../types/jwtTokenUser';
+import { isJwtTokenUser, JwtTokenUser } from '../types/jwtTokenUser';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -15,13 +15,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       algorithms: ['HS256'],
     });
   }
-
-  async validate(payload) {
+  async validate(payload: JwtTokenUser): Promise<any> {
+    console.log(payload);
     if (isJwtTokenUser(payload)) {
-      const user = await this.userService.findUnique({ id: payload.id });
-      // if (user) {
-      //   return user;
-      // }
+      if (payload.hasOwnProperty('id') && payload.hasOwnProperty('isAdmin')) return { ...payload };
     }
     throw new UnauthorizedException();
   }
