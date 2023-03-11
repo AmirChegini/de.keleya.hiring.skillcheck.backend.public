@@ -30,6 +30,14 @@ async function seed() {
       },
     });
 
+    const credentials4 = await prisma.credentials.upsert({
+      where: { id: 4 },
+      update: {},
+      create: {
+        hash: await hashPassword('password4'),
+      },
+    });
+
     console.log({ credentials1, credentials2, credentials3 });
 
     const user1 = await prisma.user.upsert({
@@ -68,7 +76,19 @@ async function seed() {
       },
     });
 
-    console.log({ user1, user2, user3 });
+    const user4 = await prisma.user.upsert({
+      where: { email: 'user3@example.com'.toLowerCase() },
+      update: {},
+      create: {
+        name: 'The mad king',
+        email: 'user3@example.com'.toLowerCase(),
+        email_confirmed: true,
+        is_admin: false,
+        credentials_id: credentials4.id,
+      },
+    });
+
+    console.log({ user1, user2, user3, user4 });
 
     console.log('Seeding completed successfully!');
   } catch (error) {

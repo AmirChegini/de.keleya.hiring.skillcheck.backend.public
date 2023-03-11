@@ -158,8 +158,6 @@ export class UserService {
    * @returns null, only status code 200 is enough
    */
   async delete(id: number): Promise<void> {
-    await this.prisma.user.deleteMany();
-    await this.prisma.credentials.deleteMany();
     const user = await this.prisma.user.findFirstOrThrow({
       where: {
         id,

@@ -125,6 +125,7 @@ export class UserController {
   }
 
   @Post('validate')
+  @HttpCode(200)
   @ApiBearerAuth('access-token')
   @ApiUnauthorizedResponse()
   @UseGuards(AuthGuard('jwt'))
